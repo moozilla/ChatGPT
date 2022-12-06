@@ -15,12 +15,13 @@ class Chatbot:
         self.config = config
         self.conversation_id = conversation_id
         self.parent_id = self.generate_uuid()
+        self.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
         self.refresh_headers()
 
     def reset_chat(self):
         self.conversation_id = None
         self.parent_id = self.generate_uuid()
-        
+
     def refresh_headers(self):
         if 'Authorization' not in self.config:
             self.config['Authorization'] = ''
@@ -29,7 +30,8 @@ class Chatbot:
         self.headers = {
             "Accept": "application/json",
             "Authorization": "Bearer " + self.config['Authorization'],
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": self.user_agent
         }
 
     def generate_uuid(self):
@@ -68,7 +70,7 @@ class Chatbot:
         self.conversation_id = response["conversation_id"]
         message = response["message"]["content"]["parts"][0]
         return {'message':message, 'conversation_id':self.conversation_id, 'parent_id':self.parent_id}
-        
+
     def get_chat_response(self, prompt, output="text"):
         data = {
             "action":"next",
@@ -96,13 +98,15 @@ class Chatbot:
             # Set cookies
             s.cookies.set("__Secure-next-auth.session-token", self.config['session_token'])
             # s.cookies.set("__Secure-next-auth.csrf-token", self.config['csrf_token'])
-            response = s.get("https://chat.openai.com/api/auth/session")
+            response = s.get("https://chat.openai.com/api/auth/session", headers={
+                "User-Agent": self.user_agent
+            })
             try:
                 self.config['session_token'] = response.cookies.get("__Secure-next-auth.session-token")
                 self.config['Authorization'] = response.json()["accessToken"]
                 self.refresh_headers()
             except Exception as e:
-                print("Error refreshing session")  
+                print("Error refreshing session")
                 print(response.text)
         elif 'email' in self.config and 'password' in self.config:
             try:
@@ -112,7 +116,7 @@ class Chatbot:
                 return e
         else:
             raise ValueError("No tokens provided")
-    
+
     def login(self, email, password):
         print("Logging in...")
         auth = OpenAIAuth(email, password)
